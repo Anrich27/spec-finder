@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}</style>
+<title>Field Spec Finder</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Spec Finder">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<meta name="theme-color" content="#c1122b">
+<style>
+/* Layout: one column, sticky search bar on top, answer cards below. System fonts only so the page works with no signal. */
+:root{
+  --bg:#eceef0; --surface:#ffffff; --sunk:#e3e6ea; --ink:#16181a; --muted:#59616a; --line:#cfd5da;
+  --band:#c1122b; --on-band:#ffffff; --accent:#b01028; --steel:#262a2e; --on-steel:#f1f3f4; --hit:#fff1d6;
+  --f-display:"Roboto Condensed","Arial Narrow","Helvetica Neue",Arial,system-ui,sans-serif;
+  --f-body:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121416; --surface:#1b1e21; --sunk:#262a2e; --ink:#eceef0; --muted:#9ca4ac; --line:#353a40;
+    --band:#b5112a; --on-band:#ffffff; --accent:#ff7a8a; --steel:#0a0b0c; --on-steel:#eceef0; --hit:#3a2e14; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121416; --surface:#1b1e21; --sunk:#262a2e; --ink:#eceef0; --muted:#9ca4ac; --line:#353a40;
+  --band:#b5112a; --on-band:#ffffff; --accent:#ff7a8a; --steel:#0a0b0c; --on-steel:#eceef0; --hit:#3a2e14; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;font-variant-numeric:tabular-nums;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h1,h2,h3,p{margin:0}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--steel);color:var(--on-steel);padding-inline:16px;padding-block:12px 10px;border-bottom:4px solid var(--band)}
+.top-in{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+.brand{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.brand h1{font-family:var(--f-display);font-weight:800;font-size:22px;letter-spacing:.04em;text-transform:uppercase;font-stretch:condensed}
+.brand span{font-size:12px;opacity:.75;letter-spacing:.06em;text-transform:uppercase;text-align:right}
+.box{display:flex;align-items:center;background:var(--surface);border-radius:6px;padding-inline:12px;gap:8px}
+.box svg{flex:none;width:20px;height:20px;stroke:var(--muted)}
+#q{flex:1;min-width:0;border:0;background:none;color:var(--ink);font-size:18px;padding-block:12px;outline:none}
+#q::placeholder{color:var(--muted)}
+#q::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;display:none}
+@media (max-width:520px){.brand span{display:none}}
+#clear{border:0;background:none;color:var(--muted);font-size:14px;padding:6px 4px}
+.ranges{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-inline:-16px;padding-inline:16px}
+.ranges::-webkit-scrollbar{display:none}
+.rchip{flex:none;border:1.5px solid rgba(255,255,255,.28);background:none;color:var(--on-steel);border-radius:20px;padding:5px 12px;font-size:14px}
+.rchip[aria-pressed="true"]{background:var(--band);border-color:var(--band)}
+main{max-width:760px;margin:0 auto;padding-inline:16px;padding-block:16px 48px;display:flex;flex-direction:column;gap:14px}
+.status{color:var(--muted);font-size:14px}
+.label{font-family:var(--f-display);font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:var(--surface);border-radius:4px;padding:7px 11px;font-size:15px;font-weight:500}
+.chip small{color:var(--muted);font-weight:400}
+.card{background:var(--surface);border:1px solid var(--line);min-width:0}
+.card-h{display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:10px 14px 0}
+.eyebrow{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.card h2{font-size:19px;font-weight:650;line-height:1.25;padding:2px 14px 10px;text-wrap:balance}
+.ans{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.ans-row{display:grid;grid-template-columns:minmax(0,9.5em) minmax(0,1fr);gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);align-items:baseline}
+.ans-row:last-child{border-bottom:0}
+.ans-row .m{font-weight:600;font-size:15px}
+.ans-row .v{font-size:20px;font-weight:700;color:var(--accent);overflow-wrap:anywhere;line-height:1.25}
+.ans-row .v.long{font-size:16px;font-weight:600;color:var(--ink)}
+.others{border-top:1px solid var(--line);padding:8px 14px 10px;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px;color:var(--muted)}
+.others b{color:var(--ink);font-weight:600}
+.src{font-size:12px;color:var(--muted);padding:0 14px 10px}
+.band{background:var(--band);color:var(--on-band);font-family:var(--f-display);font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:10px 14px;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.band h2{font-size:22px;padding:0;font-weight:800}
+.band span{font-size:13px;font-weight:600;opacity:.9;text-align:right}
+.sec{font-family:var(--f-display);font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:var(--sunk);padding:7px 14px}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:12px;padding:8px 14px;border-bottom:1px solid var(--line);font-size:15px}
+.kv:last-child{border-bottom:0}
+.kv .k{color:var(--muted)}
+.kv .v{font-weight:600;overflow-wrap:anywhere}
+.kv.hit{background:var(--hit)}
+.mlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;padding:12px 14px 14px}
+.mbtn{border:1.5px solid var(--line);background:var(--surface);border-radius:4px;padding:10px 12px;text-align:left;font-weight:600;font-size:15px}
+.mbtn small{display:block;color:var(--muted);font-weight:400;font-size:13px}
+.empty{background:var(--surface);border:1px dashed var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:8px}
+.foot{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:6px;max-width:64ch}
+.back{align-self:flex-start;border:0;background:none;color:var(--accent);font-weight:600;padding:4px 0}
+@media (min-width:600px){.ans-row{grid-template-columns:minmax(0,12em) minmax(0,1fr)}}
+</style>
+</head><body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand"><h1>Field Spec Finder</h1><span>Middelburg Case International</span></div>
+    <label class="box" for="q">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
+      <input id="q" type="search" inputmode="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. magnum 340 lift">
+      <button id="clear" type="button" hidden>Clear</button>
+    </label>
+    <div class="ranges" id="ranges" role="group" aria-label="Filter by range"></div>
+  </div>
+</header>
+<main id="out"></main>
+
+<script>
+"use strict";
+/* ================= DATA (transcribed from the dealership's brochures) =================
+   Each row: [section, label, value]. value is one string for every model, or an array with one entry per model ('' = not listed). */
+const RANGES=[
+ {id:'jxt',n:'JXT'},{id:'puma',n:'Puma'},{id:'magnum',n:'Magnum'},{id:'steiger',n:'Steiger & Quadtrac'},{id:'patriot',n:'Patriot'},{id:'axial',n:'Axial-Flow'}
+];
+const D=[
+{id:'jxt',r:'jxt',name:'JXT Compact / JXT tractors',kw:'tractor trekker compact utility',src:'JXT Compact & JXT flyer (11/22 MEA)',
+ models:[['JX35T Compact','jx35t jx35 35t'],['JX40T Compact','jx40t jx40 40t'],['JX45T Compact','jx45t jx45 45t'],['JX55T','jx55t jx55 55t'],['JX75T','jx75t jx75 75t']],
+ rows:[
+ ['Engine','Rated power',['36 hp (27 kW)','42 hp (31 kW)','49 hp (36 kW)','55 hp (40 kW)','75 hp (55 kW)']],
+ ['Engine','Emissions',['Tier 2','Tier 2','Tier 2','Tier 1 (Tier 3 optional)','Tier 1 (Tier 3 optional)']],
+ ['Engine','Cylinders and aspiration',['3 cylinders, naturally aspirated','3 cylinders, naturally aspirated','3 cylinders, naturally aspirated','3 cylinders; Tier 1 naturally aspirated, Tier 3 turbocharged','4 cylinders; Tier 1 naturally aspirated, Tier 3 turbocharged']],
+ ['Engine','Engine displacement',['2,365 cc','2,500 cc','2,700 cc','2,931 cc','3,908 cc']],
+ ['Engine','Rated engine speed',['2,000 rpm','2,000 rpm','2,250 rpm','Tier 1: 2,500 rpm / Tier 3: 2,300 rpm','Tier 1: 2,500 rpm / Tier 3: 2,300 rpm']],
+ ['Engine','Maximum torque',['142 Nm @ 1,400 rpm','166 Nm @ 1,300 rpm','180 Nm @ 1,300 rpm','Tier 1: 203 Nm / Tier 3: 220 Nm @ 1,400 rpm','Tier 1: 257 Nm / Tier 3: 290 Nm @ 1,400 rpm']],
+ ['Engine','Fuel tank capacity','62 l'],
+ ['Transmission','Clutch','Mechanical'],
+ ['Transmission','Standard speeds','8 forward, 2 reverse'],
+ ['Transmission','Gearbox type',['Constant mesh with epicyclic final drive','Constant mesh with epicyclic final drive','Constant mesh with epicyclic final drive','Constant mesh (optional partial synchromesh on 3rd and 4th gear)','Constant mesh (optional partial synchromesh on 3rd and 4th gear)']],
+ ['Transmission','Optional speeds',['8 forward, 8 reverse','8 forward, 8 reverse','8 forward, 8 reverse','12 forward, 3 reverse (with or without creeper)','12 forward, 3 reverse (with or without creeper)']],
+ ['PTO','PTO type',['Independent double clutch (standard); non-independent single clutch (optional)','Independent double clutch (standard); non-independent single clutch (optional)','Independent double clutch (standard); non-independent single clutch (optional)','Fully independent','Fully independent']],
+ ['PTO','PTO speeds',['540 rpm (reversible PTO standard if activated)','540 rpm (reversible PTO standard if activated)','540 rpm (reversible PTO standard if activated)','540 rpm','540 rpm']],
+ ['PTO','Optional PTO speeds',['540 / 540E rpm','540 / 540E rpm','540 / 540E rpm','540 rpm with ground speed PTO','540 rpm with ground speed PTO']],
+ ['Hydraulics','Rear linkage category','Category II / I'],
+ ['Hydraulics','Hydraulic system','Open circuit'],
+ ['Hydraulics','Hydraulic flow and pressure',['29 l/min, 210 bar','29 l/min, 210 bar','29 l/min, 210 bar','45 l/min, 210 bar','45 l/min, 210 bar']],
+ ['Hydraulics','Steering pump flow and pressure',['19 l/min, 190 bar','19 l/min, 190 bar','19 l/min, 190 bar','28 l/min; 110 bar (2WD), 125 bar (4WD)','28 l/min; 110 bar (2WD), 125 bar (4WD)']],
+ ['Hydraulics','Lift control','Mechanical: position, draft, mixed; fast raise-lower (Lift-o-matic)'],
+ ['Hydraulics','Remote valves','2 maximum'],
+ ['Hydraulics','Rear lift capacity (at ball ends)',['1,100 kg standard / 1,800 kg optional','1,100 kg standard / 1,800 kg optional','1,800 kg standard','1,400 kg standard / 1,850 kg optional','1,500 kg standard / 2,000 kg optional']],
+ ['Axles and steering','Drive','2WD or 4WD'],
+ ['Axles and steering','Rear axle','Planetary type heavy duty axle'],
+ ['Axles and steering','Differential lock','Mechanical, standard'],
+ ['Axles and steering','Maximum steering angle (2WD / 4WD)',['52° / 31.5°','52° / 31.5°','52° / 31.5°','52° / 38°','52° / 38°']],
+ ['Axles and steering','Turning radius with brakes (2WD / 4WD)',['2,900 / 3,700 mm','2,900 / 3,700 mm','2,900 / 3,700 mm','3,205 / 4,200 mm','3,275 / 4,200 mm']],
+ ['Axles and steering','Turning radius without brakes (2WD / 4WD)',['3,300 / 5,100 mm','3,300 / 5,100 mm','3,300 / 5,100 mm','3,500 / 5,100 mm','3,705 / 5,260 mm']],
+ ['Dimensions and weight','Wheelbase (2WD / 4WD)',['1,910 / 1,990 mm','1,910 / 1,990 mm','1,965 / 1,990 mm','2,050 / 2,005 mm','2,210 / 2,160 mm']],
+ ['Dimensions and weight','Shipping weight with ROPS (2WD / 4WD)',['1,820 / 2,305 kg','1,860 / 2,305 kg','2,015 / 2,305 kg','2,200 / 2,400 kg','2,450 / 2,700 kg']],
+ ['Dimensions and weight','Ground clearance under front axle (2WD / 4WD)',['370 / 405 mm','370 / 405 mm','370 / 405 mm','480 / 380 mm','500 / 410 mm']],
+ ['Dimensions and weight','Ground clearance under rear axle',['410 mm','460 mm','460 mm','455 / 434 mm (2WD / 4WD)','485 / 490 mm (2WD / 4WD)']],
+ ['Dimensions and weight','Height to top of exhaust (2WD / 4WD)',['2,270 / 2,350 mm','2,270 / 2,350 mm','2,270 / 2,350 mm','2,200 / 2,400 mm','2,200 / 2,400 mm']]
+]},
+{id:'puma',r:'puma',name:'Puma tractors',kw:'tractor trekker',src:'Puma specs sheet',
+ models:[['Puma 210','puma210 210'],['Puma 155','puma155 155'],['Puma 140','puma140 140']],
+ rows:[
+ ['Engine','Rated power',['213 hp (157 kW)','158 hp (116 kW)','142 hp (104 kW)']],
+ ['Engine','Rated power with Power Management',['238 hp (175 kW)','183 hp (135 kW)','167 hp (123 kW)']],
+ ['Engine','Maximum power',['223 hp (164 kW) @ 1,900–2,000 rpm','169 hp (124 kW) @ 1,900–2,000 rpm','152 hp (112 kW) @ 1,900–2,000 rpm']],
+ ['Engine','Maximum power with Power Management',['242 hp (178 kW)','193 hp (142 kW)','178 hp (131 kW)']],
+ ['Engine','Rated engine speed','2,200 rpm'],
+ ['Engine','Maximum torque',['866 Nm @ 1,400 rpm','690 Nm @ 1,400 rpm','643 Nm @ 1,400 rpm']],
+ ['Engine','Maximum torque with Power Management',['984 Nm @ 1,600 rpm','748 Nm @ 1,600 rpm','678 Nm @ 1,600 rpm']],
+ ['Engine','Torque rise (standard / Power Management)',['27% / 30%','37% / 28%','42% / 27%']],
+ ['Engine','Engine','6 cylinders, wastegate turbo and intercooler, Tier 3'],
+ ['Engine','Engine displacement','6,700 cc (6.7 l)'],
+ ['Engine','Fuel tank capacity',['410 l','300 l','300 l']],
+ ['Transmission','Standard transmission','18x6 Full-Powershift, 40 km/h, powershuttle standard, creeper optional'],
+ ['Transmission','Optional transmission 1',['19x6 Full-Powershift, 40 km/h Eco or 50 km/h','18x6 Semi-Powershift, 40 km/h','18x6 Semi-Powershift, 40 km/h']],
+ ['Transmission','Optional transmission 2',['','19x6 Full-Powershift, 40 km/h Eco or 50 km/h','19x6 Full-Powershift, 40 km/h Eco or 50 km/h']],
+ ['Transmission','Top speed',['40 km/h (50 km/h with 19x6)','40 km/h (50 km/h with 19x6)','40 km/h (50 km/h with 19x6)']],
+ ['PTO','PTO type','Electro-hydraulic, Auto PTO control available'],
+ ['PTO','Standard PTO speeds',['540E / 1000 @ 1,569 / 1,893 engine rpm','540 / 540E / 1000 @ 1,969 / 1,546 / 2,120 engine rpm','540 / 540E / 1000 @ 1,969 / 1,546 / 2,120 engine rpm']],
+ ['PTO','Optional PTO speeds',['540 / 1000 @ 1,893 / 1,950 engine rpm','','']],
+ ['PTO','PTO shaft',['1 3/8" 21 spline, 1 3/8" 6 spline / 1 3/4" 20 spline','1 3/8" 21 spline / 1 3/8" 6 spline','1 3/8" 21 spline / 1 3/8" 6 spline']],
+ ['Front hitch and PTO','Front PTO speed','1,000 rpm'],
+ ['Front hitch and PTO','Front hitch lift capacity',['3,900 kg','3,568 kg','3,568 kg']],
+ ['Driveline','Drive','4WD'],
+ ['Driveline','Front axle suspension',['Standard / Active','Optional','Optional']],
+ ['Driveline','Steering angle','55°'],
+ ['Driveline','Minimum turning radius',['6.1 m','5.45 m','5.45 m']],
+ ['Driveline','Rear differential lock','Multi disc wet plate with management system'],
+ ['Driveline','Service brakes','Hydraulically operated multiple wet disc, self adjusting'],
+ ['Hydraulics','Hydraulic system','Variable displacement, pressure flow compensated (PFC) pump'],
+ ['Hydraulics','Hydraulic pump flow',['120 l/min','113 l/min','113 l/min']],
+ ['Hydraulics','Hydraulic pressure',['215 bar','210 bar','210 bar']],
+ ['Hydraulics','Hitch control','Electronic Hitch Control (EHC) with cushion ride control'],
+ ['Hydraulics','Rear lift capacity',['10,460 kg','8,257 kg','8,257 kg']],
+ ['Hydraulics','Remote valves','4 rear maximum'],
+ ['Hydraulics','Hitch category','Cat II / III']
+]},
+{id:'magnum26',r:'magnum',name:'Magnum tractors (2026)',kw:'tractor trekker new current',src:'Magnum spec sheet 26MEACOMMAG001 (January 2026)',
+ models:[['Magnum 265','magnum265 265 wheeled'],['Magnum 295','magnum295 295 wheeled'],['Magnum 325','magnum325 325 wheeled'],['Magnum 355','magnum355 355 wheeled'],['Magnum 355 Rowtrac','magnum355 355 rowtrac rt track tracks'],['Magnum 385','magnum385 385 wheeled'],['Magnum 385 Rowtrac','magnum385 385 rowtrac rt track tracks'],['Magnum 405','magnum405 405 wheeled'],['Magnum 405 Rowtrac','magnum405 405 rowtrac rt track tracks']],
+ rows:[
+ ['Engine','Rated power',['265 hp (195 kW)','295 hp (217 kW)','325 hp (239 kW)','355 hp (261 kW)','355 hp (261 kW)','385 hp (283 kW)','385 hp (283 kW)','405 hp (298 kW)','405 hp (298 kW)']],
+ ['Engine','Rated power with Power Management',['286 hp (210 kW)','315 hp (232 kW)','347 hp (255 kW)','375 hp (276 kW)','375 hp (276 kW)','403 hp (296 kW)','403 hp (296 kW)','Not available','Not available']],
+ ['Engine','Maximum power (@ 1,800 rpm)',['290 hp (216 kW)','325 hp (242 kW)','356 hp (265 kW)','390 hp (291 kW)','390 hp (291 kW)','417 hp (307 kW)','417 hp (307 kW)','435 hp (320 kW)','435 hp (320 kW)']],
+ ['Engine','Maximum power with Power Management',['320 hp (235 kW)','351 hp (258 kW)','383 hp (281 kW)','410 hp (301 kW)','410 hp (301 kW)','435 hp (311 kW)','435 hp (311 kW)','Not available','Not available']],
+ ['Engine','Power growth over previous model',['9%','10%','10%','9%','9%','8%','8%','5%','5%']],
+ ['Engine','Rated engine speed','2,000 rpm'],
+ ['Engine','Maximum torque (@ 1,400 rpm)',['1,229 Nm','1,381 Nm','1,531 Nm','1,671 Nm','1,671 Nm','1,806 Nm','1,806 Nm','1,822 Nm','1,822 Nm']],
+ ['Engine','Maximum torque with Power Management',['1,407 Nm','1,558 Nm','1,708 Nm','1,800 Nm','1,800 Nm','1,822 Nm','1,822 Nm','Not available','Not available']],
+ ['Engine','Torque rise (standard / Power Management)',['40% / 40%','40% / 41%','40% / 40%','40% / 37%','40% / 37%','36% / 29%','36% / 29%','31% / not available','31% / not available']],
+ ['Engine','Engine','Case IH FPT, 6 cylinders, 24 valves, Tier 2B, common rail, eVGT turbo with intercooler'],
+ ['Engine','Engine displacement','8.7 l (bore x stroke 117 x 135 mm)'],
+ ['Engine','Fuel tank capacity',['753 l','753 l','753 l','753 l','670 l','753 l','670 l','753 l','670 l']],
+ ['Electrical','Alternator and batteries','240 A, 2 x 12 V batteries (1,000 CCA); 12 V start'],
+ ['Transmission','Standard transmission',['19x4 PowerDrive, 40 km/h Eco or 50 km/h Eco','19x4 PowerDrive, 40 km/h Eco or 50 km/h Eco','19x4 PowerDrive, 40 km/h Eco or 50 km/h Eco','21x5 PowerDrive, 40 km/h Eco or 50 km/h Eco','21x5 PowerDrive, 40 km/h Eco or 50 km/h Eco','CVXDrive (continuously variable, 40 km/h Eco or 50 km/h)','21x5 PowerDrive, 40 km/h Eco or 50 km/h Eco','21x5 PowerDrive, 40 km/h Eco or 50 km/h Eco','21x5 PowerDrive, 40 km/h Eco or 50 km/h Eco']],
+ ['Transmission','CVXDrive (continuously variable, 40 km/h Eco or 50 km/h)',['Optional','Optional','Optional','Optional','Optional','Standard','Optional','Not available','Not available']],
+ ['Transmission','Powershuttle','Left and right hand, standard'],
+ ['Transmission','Service brakes','Hydraulically operated multiple wet disc, self adjusting'],
+ ['Axles','Rear axle diameter',['115 mm','115 mm','115 mm','127 mm','','127 mm','','127 mm','']],
+ ['Axles','Rear axle length (standard / optional)',['2,490 / 3,050 mm','2,490 / 3,050 mm','2,490 / 3,050 mm','2,490 / 3,050 mm','','2,490 / 3,050 mm','','2,490 / 3,050 mm','']],
+ ['Axles','Rear differential lock','Electro-hydraulic'],
+ ['Axles','Front axle category',['Cat 4.75 (Cat 5 optional)','Cat 4.75 (Cat 5 optional)','Cat 5','Cat 5','Cat 5','Cat 5','Cat 5','Cat 5','Cat 5']],
+ ['Axles','Front axle adjustable spacing','1,524–2,235 mm'],
+ ['Axles','MFD / rear axle duals',['Optional','Optional','Optional','Optional','','Optional','','Optional','']],
+ ['Axles','Suspended front axle','Optional'],
+ ['Steering','Steering','Electro-hydraulic 4WD with management system, 55° steering angle'],
+ ['Steering','Minimum turning radius',['5.45 m','5.45 m','5.45 m','5.45 m','6.1 m','5.45 m','6.1 m','5.45 m','6.1 m']],
+ ['PTO','PTO','Electro-hydraulic; 1,000 rpm 1 3/4" standard; optional 3 interchangeable shafts for 540 and 1,000 rpm 1 3/8"; @ 1,830 engine rpm'],
+ ['PTO','PTO shaft','1 3/8" 21 spline, 1 3/8" 6 spline and 1 3/4" 20 spline'],
+ ['Hydraulics','Hydraulic system','Pressure flow compensating (PFC)'],
+ ['Hydraulics','Hydraulic pump flow','221 l/min PowerDrive / 236 l/min CVXDrive; Mega Flow dual pump 335 / 358 l/min'],
+ ['Hydraulics','Hydraulic pressure','210 bar'],
+ ['Hydraulics','Hitch control','EHC with hitch ride control; hydraulic top link and automatic stabilisers optional'],
+ ['Hydraulics','Rear lift capacity (at hook ends)',['8,211 to 10,211 kg','8,211 to 10,211 kg','8,211 to 10,211 kg','11,217 to 11,245 kg','11,217 to 11,245 kg','11,217 to 11,245 kg','11,217 to 11,245 kg','11,245 kg','11,245 kg']],
+ ['Hydraulics','Drawbar vertical capacity','1,460–4,990 kg'],
+ ['Hydraulics','Remote valves','Electronic remote valves standard, 5th and 6th optional; power beyond or low pressure return; individual timer and flow controls'],
+ ['Hydraulics','Mid mount valves','3 electric, with electronic joystick'],
+ ['Hydraulics','Hitch category',['Cat III / IIIN','Cat IVN / III','Cat IVN / III','Cat IV / III','Cat IV / III','Cat IV / III','Cat IV / III','Cat IV / III','Cat IV / III']],
+ ['Front hitch and PTO','Front PTO','1,000 rpm @ 1,800 engine rpm, optional'],
+ ['Front hitch and PTO','Front hitch lift capacity (at hook ends)','4,090 kg'],
+ ['Weight','Shipping weight (standard / suspended front axle)',['12,186 / 13,137 kg','12,186 / 13,137 kg','12,186 / 13,137 kg','12,482 / 13,396 kg','12,482 / 13,396 kg','12,482 / 13,396 kg','12,482 / 13,396 kg','12,482 / 13,396 kg','12,482 / 13,396 kg']],
+ ['Weight','Maximum operating weight (ballasted)',['14,424 kg','16,057 kg','17,800 kg','18,700 kg (Cat 5 rear axle)','18,700 kg (Cat 5 rear axle)','18,700 kg (Cat 5 rear axle)','18,700 kg (Cat 5 rear axle)','18,700 kg (Cat 5 rear axle)','18,700 kg (Cat 5 rear axle)']],
+ ['Weight','Maximum permissible weight front','9,000 / 10,000 kg (Cat 4.75 / Cat 5 front axle)'],
+ ['Weight','Maximum permissible weight rear',['18,300 kg','18,300 kg','18,300 kg','21,300 kg','21,300 kg','21,300 kg','21,300 kg','21,300 kg','21,300 kg']],
+ ['Dimensions','Wheelbase',['3,055 mm','3,055 mm','3,055 mm','3,155 mm','','3,155 mm','','3,155 mm','']],
+ ['Dimensions','Overall length',['6,330 mm','6,330 mm','6,330 mm','6,550 mm','6,332 mm','6,550 mm','6,332 mm','6,550 mm','6,332 mm']],
+ ['Dimensions','Overall height',['3,480 mm','3,480 mm','3,480 mm','3,510 mm','3,520 mm','3,510 mm','3,520 mm','3,510 mm','3,520 mm']],
+ ['Dimensions','Overall width (across rear fenders)',['3,050 mm','3,050 mm','3,050 mm','3,050 mm','','3,050 mm','','3,050 mm','']],
+ ['Dimensions','Height to centre of rear axle',['942 mm','942 mm','942 mm','942 mm','1,243 mm','942 mm','1,243 mm','942 mm','1,243 mm']],
+ ['Dimensions','Track setting front','2,362–3,454 mm'],
+ ['Dimensions','Track setting rear','2,540–3,658 mm'],
+ ['Tyres','Standard front tyre','420/85R34'],
+ ['Tyres','Standard rear tyre',['480/80R50','480/80R50','480/80R50','480/80R50','Rear tracks (Rowtrac)','480/95R50','Rear tracks (Rowtrac)','480/95R50','Rear tracks (Rowtrac)']]
+]},
+{id:'magnum',r:'magnum',name:'Magnum tractors (previous models)',kw:'tractor trekker previous old older trade',src:'Magnum AFS Connect brochure (12/2021)',
+ models:[['Magnum 250','magnum250 250 wheeled'],['Magnum 280','magnum280 280 wheeled'],['Magnum 310','magnum310 310 wheeled'],['Magnum 340','magnum340 340 wheeled'],['Magnum 380','magnum380 380 wheeled'],['Magnum 400','magnum400 400 wheeled'],['Magnum 340 Rowtrac','magnum340 340 rowtrac rt track tracks'],['Magnum 380 Rowtrac','magnum380 380 rowtrac rt track tracks'],['Magnum 400 Rowtrac','magnum400 400 rowtrac rt track tracks']],
+ rows:[
+ ['Engine','Rated power',['250 hp (184 kW)','280 hp (206 kW)','312 hp (229 kW)','340 hp (250 kW)','379 hp (279 kW)','396 hp (291 kW)','340 hp (250 kW)','379 hp (279 kW)','396 hp (291 kW)']],
+ ['Engine','Rated power with Power Management',['286 hp (210 kW)','315 hp (232 kW)','347 hp (255 kW)','375 hp (276 kW)','415 hp (305 kW)','396 hp (291 kW), one figure listed','375 hp (276 kW)','415 hp (305 kW)','396 hp (291 kW), one figure listed']],
+ ['Engine','Maximum power (@ 1,800 rpm)',['284 hp (209 kW)','315 hp (232 kW)','347 hp (255 kW)','374 hp (275 kW)','417 hp (307 kW)','435 hp (320 kW)','374 hp (275 kW)','417 hp (307 kW)','435 hp (320 kW)']],
+ ['Engine','Maximum power with Power Management',['320 hp (235 kW)','351 hp (258 kW)','383 hp (281 kW)','410 hp (301 kW)','435 hp (320 kW)','435 hp (320 kW)','410 hp (301 kW)','435 hp (320 kW)','435 hp (320 kW)']],
+ ['Engine','Rated engine speed','2,000 rpm'],
+ ['Engine','Maximum torque (@ 1,400 rpm)',['1,229 Nm','1,381 Nm','1,531 Nm','1,671 Nm','1,850 Nm','1,850 Nm','1,671 Nm','1,850 Nm','1,850 Nm']],
+ ['Engine','Maximum torque with Power Management',['1,407 Nm','1,558 Nm','1,708 Nm','1,800 Nm','1,850 Nm','1,850 Nm','1,800 Nm','1,850 Nm','1,850 Nm']],
+ ['Engine','Torque rise (standard / Power Management)',['40% / 40%','40% / 41%','40% / 40%','40% / 37%','36% / 29%','31% / 31%','40% / 37%','36% / 29%','31% / 31%']],
+ ['Engine','Engine','Case IH FPT, 6 cylinders, turbocharged and intercooled, Tier 2'],
+ ['Engine','Engine displacement','8.7 l'],
+ ['Engine','Turbo and injection',['Common rail, wastegate turbo with intercooler','Common rail, eVGT (electronic variable geometry turbo)','Common rail, eVGT (electronic variable geometry turbo)','Common rail, eVGT (electronic variable geometry turbo)','Common rail, eVGT (electronic variable geometry turbo)','Common rail, eVGT (electronic variable geometry turbo)','Common rail, eVGT (electronic variable geometry turbo)','Common rail, eVGT (electronic variable geometry turbo)','Common rail, eVGT (electronic variable geometry turbo)']],
+ ['Engine','Fuel tank capacity',['765 l','765 l','765 l','765 l','765 l','765 l','644 l','644 l','644 l']],
+ ['Electrical','Alternator and batteries','240 A alternator, 2 x 12 V batteries; 12 V start'],
+ ['Transmission','Standard transmission',['19x4 PowerDrive, 40 km/h Eco or 50 km/h','19x4 PowerDrive, 40 km/h Eco or 50 km/h','18x4 PowerDrive, 40 km/h','18x4 PowerDrive, 40 km/h','CVXDrive (continuously variable)','21x5 PowerDrive, 40 km/h or 50 km/h Eco','18x4 PowerDrive, 40 km/h','CVXDrive (continuously variable)','21x5 PowerDrive, 40 km/h or 50 km/h Eco']],
+ ['Transmission','Optional transmissions',['18x4 PowerDrive or CVXDrive','18x4 PowerDrive or CVXDrive','19x4 PowerDrive or CVXDrive','19x4 PowerDrive or CVXDrive','None listed','None listed (CVXDrive not available)','19x4 PowerDrive or CVXDrive','None listed','None listed (CVXDrive not available)']],
+ ['Transmission','Powershuttle','Left and right hand, standard'],
+ ['Transmission','Service brakes','Hydraulically operated multiple wet disc, self adjusting'],
+ ['Axles','Rear axle diameter',['115 mm','115 mm','115 mm','115–127 mm','127 mm','127 mm','','','']],
+ ['Axles','Rear axle length (standard / optional)',['2,490 / 3,050 mm','2,490 / 3,050 mm','2,490 / 3,050 mm','2,490 / 3,050 mm','2,491 / 3,050 mm','2,492 / 3,050 mm','','','']],
+ ['Axles','Rear differential lock','Electro-hydraulic, optional'],
+ ['Axles','Front axle category',['Cat 4.75 (Cat 5 optional)','Cat 4.75 (Cat 5 optional)','Cat 5','Cat 5','Cat 5','Cat 5','Cat 5','Cat 5','Cat 5']],
+ ['Axles','Front axle adjustable spacing (standard / optional)','1,524–2,235 / 1,676–2,388 mm'],
+ ['Axles','MFD / rear axle duals',['Optional','Optional','Optional','Optional','Optional','Optional','','','']],
+ ['Axles','Suspended front axle','Optional'],
+ ['Steering','Steering','Electro-hydraulic 4WD with management system, 55° steering angle'],
+ ['Steering','Minimum turning radius',['5.45 m','5.45 m','5.45 m','5.45 m','5.45 m','5.45 m','6.1 m','6.1 m','6.1 m']],
+ ['PTO','PTO engagement','Electro-hydraulic'],
+ ['PTO','PTO speeds','540 / 1000 standard, 1000 (20 spline) optional, @ 1,830 engine rpm'],
+ ['PTO','PTO shaft','1 3/8" 21 spline, 1 3/8" 6 spline / 1 3/4" 20 spline'],
+ ['Hydraulics','Hydraulic system','Pressure flow compensating (PFC)'],
+ ['Hydraulics','Hydraulic pump flow (standard / optional)','166 / 221 / 282 l/min'],
+ ['Hydraulics','Hydraulic pressure','210 bar'],
+ ['Hydraulics','Hitch control','EHC with hitch ride control; hydraulic top link and automatic stabilisers optional'],
+ ['Hydraulics','Rear lift capacity',['6,689 kg standard / 8,259 kg optional','6,689 kg standard / 8,259 kg optional','11,700 kg','11,700 kg','10,929 kg','10,929 kg','11,700 kg','10,929 kg','10,929 kg']],
+ ['Hydraulics','Remote valves','Electronic remote valves standard, 5th and 6th optional; power beyond or low pressure return; individual timer and flow controls'],
+ ['Hydraulics','Mid mount valves','3 electric, with electronic joystick'],
+ ['Hydraulics','Hitch category',['Cat III / IIN','Cat III / IIN / IV / IVN','Cat III / IIN / IV / IVN','Cat III / IIN / IV / IVN','Cat IV / IVN','Cat IV / IVN','Cat III / IIN / IV / IVN','Cat IV / IVN','Cat IV / IVN']],
+ ['Front hitch and PTO','Front PTO','1,000 rpm @ 1,804 engine rpm, optional'],
+ ['Front hitch and PTO','Front hitch lift capacity','4,070 kg'],
+ ['Weight','Shipping weight (standard / suspended front axle)',['10,910 / 11,415 kg','10,910 / 11,415 kg','10,910 / 11,415 kg','11,730 / 12,190 kg','11,730 / 12,190 kg','11,730 / 12,190 kg','16,653 / 17,113 kg','16,653 / 17,113 kg','16,653 / 17,113 kg']],
+ ['Weight','Permissible total weight',['17,530 / 17,850 kg (Cat 4.75 / Cat 5 axle)','17,530 / 17,850 kg (Cat 4.75 / Cat 5 axle)','17,530 / 17,850 kg (Cat 4.75 / Cat 5 axle)','18,000 kg','18,000 kg','18,000 kg','24,500 kg','24,500 kg','24,500 kg']],
+ ['Weight','Maximum permissible weight front',['6,030 / 6,350 kg (Cat 4.75 / Cat 5 axle)','6,030 / 6,350 kg (Cat 4.75 / Cat 5 axle)','6,030 / 6,350 kg (Cat 4.75 / Cat 5 axle)','7,760 kg','7,760 kg','7,760 kg','7,760 kg','7,760 kg','7,760 kg']],
+ ['Weight','Maximum permissible weight rear','11,500 kg'],
+ ['Dimensions','Wheelbase',['3,055 mm PowerDrive / 3,105 mm CVXDrive','3,055 mm PowerDrive / 3,105 mm CVXDrive','3,055 mm PowerDrive / 3,105 mm CVXDrive','3,055 mm PowerDrive / 3,105 mm CVXDrive / 3,155 mm Cat 5 rear axle','3,155 mm CVXDrive / 3,155 mm Cat 5 rear axle','3,155 mm PowerDrive / 3,155 mm Cat 5 rear axle','','','']],
+ ['Dimensions','Overall length (carrier / front hitch / front weights)',['6,015 / 6,295 / 6,225 mm','6,015 / 6,295 / 6,225 mm','6,015 / 6,295 / 6,225 mm','6,299 / 6,575 / 6,505 mm (heavy duty rear axle)','6,299 / 6,575 / 6,505 mm (heavy duty rear axle)','6,299 / 6,575 / 6,505 mm (heavy duty rear axle)','6,299 / 6,575 / 6,505 mm','6,299 / 6,575 / 6,505 mm','6,299 / 6,575 / 6,505 mm']],
+ ['Dimensions','Overall height','3,375 mm'],
+ ['Dimensions','Overall width (across rear fenders)',['2,550 mm','2,550 mm','2,550 mm','2,550 mm','2,550 mm','2,550 mm','2,540 / 2,990 mm','2,540 / 2,990 mm','2,540 / 2,990 mm']],
+ ['Dimensions','Track setting front','2,362–3,454 mm'],
+ ['Dimensions','Track setting rear','2,540–3,658 mm'],
+ ['Tyres','Standard front tyre',['420/85R34','420/85R34','420/85R34','420/85R34','420/85R38','420/85R38','420/85R38','420/85R38','420/85R38']],
+ ['Tyres','Standard rear tyre',['480/80R50','480/80R50','480/80R50','480/80R50','480/95R50','480/95R50','Rear tracks (Rowtrac)','Rear tracks (Rowtrac)','Rear tracks (Rowtrac)']]
+]},
+{id:'steiger26',r:'steiger',name:'Steiger & Quadtrac tractors (2026)',kw:'tractor trekker articulated 4wd new current',src:'Steiger & Quadtrac specifications 26MEACOMSTE001',
+ models:[['Steiger 425','steiger425 425 wheeled wheel'],['Steiger 475','steiger475 475 wheeled wheel'],['Steiger 525','steiger525 525 wheeled wheel'],['Steiger 555','steiger555 555 wheeled wheel'],['Steiger 595','steiger595 595 wheeled wheel'],['Steiger 645','steiger645 645 wheeled wheel'],['Quadtrac 475','quadtrac475 475 qt quad track tracks'],['Quadtrac 525','quadtrac525 525 qt quad track tracks'],['Quadtrac 555','quadtrac555 555 qt quad track tracks'],['Quadtrac 595','quadtrac595 595 qt quad track tracks'],['Quadtrac 645','quadtrac645 645 qt quad track tracks'],['Quadtrac 715','quadtrac715 715 qt quad track tracks'],['Quadtrac 785','quadtrac785 785 qt quad track tracks']],
+ rows:[
+ ['Engine','Rated power',['425 hp (312 kW)','475 hp (349 kW)','525 hp (386 kW)','555 hp (408 kW)','595 hp (438 kW)','645 hp (474 kW)','475 hp (349 kW)','525 hp (386 kW)','555 hp (408 kW)','595 hp (438 kW)','645 hp (474 kW)','715 hp (527 kW)','785 hp (577 kW)']],
+ ['Engine','Rated power with Power Management / Power Boost',['463 hp (341 kW)','514 hp (378 kW)','564 hp (415 kW)','598 hp (440 kW)','635 hp (467 kW)','685 hp (504 kW)','514 hp (378 kW)','564 hp (415 kW)','598 hp (440 kW)','635 hp (467 kW)','685 hp (504 kW)','743 hp (547 kW)','817 hp (601 kW)']],
+ ['Engine','Maximum power (@ 1,900 rpm)',['467 hp (344 kW)','522 hp (384 kW)','578 hp (425 kW)','614 hp (451 kW)','656 hp (482 kW)','699 hp (514 kW)','522 hp (384 kW)','578 hp (425 kW)','614 hp (451 kW)','656 hp (482 kW)','699 hp (514 kW)','778 hp (572 kW)','853 hp (627 kW)']],
+ ['Engine','Rated engine speed','2,100 rpm'],
+ ['Engine','Maximum torque (@ 1,400 rpm)',['1,989 Nm','2,222 Nm','2,459 Nm','2,681 Nm','2,877 Nm','3,061 Nm','2,222 Nm','2,459 Nm','2,681 Nm','2,877 Nm','3,061 Nm','3,356 Nm','3,681 Nm']],
+ ['Engine','Torque rise','40%'],
+ ['Engine','Engine',['Case IH FPT Tier 2B, 6 cylinders, 12.9 l, single-stage eVGT turbo, air-to-air aftercooled','Case IH FPT Tier 2B, 6 cylinders, 12.9 l, single-stage eVGT turbo, air-to-air aftercooled','Case IH FPT Tier 2B, 6 cylinders, 12.9 l, single-stage eVGT turbo, air-to-air aftercooled','Case IH FPT Tier 2B, 6 cylinders, 12.9 l, two-stage turbo, air-to-water intercooled','Case IH FPT Tier 2B, 6 cylinders, 12.9 l, two-stage turbo, air-to-water intercooled','Case IH FPT Tier 2B, 6 cylinders, 12.9 l, two-stage turbo, air-to-water intercooled','Case IH FPT Tier 2B, 6 cylinders, 12.9 l, single-stage eVGT turbo, air-to-air aftercooled','Case IH FPT Tier 2B, 6 cylinders, 12.9 l, single-stage eVGT turbo, air-to-air aftercooled','Case IH FPT Tier 2B, 6 cylinders, 12.9 l, two-stage turbo, air-to-water intercooled','Case IH FPT Tier 2B, 6 cylinders, 12.9 l, two-stage turbo, air-to-water intercooled','Case IH FPT Tier 2B, 6 cylinders, 12.9 l, two-stage turbo, air-to-water intercooled','Case IH FPT Tier 2B, 6 cylinders, 15.9 l, two-stage turbo, air-to-water intercooled','Case IH FPT Tier 2B, 6 cylinders, 15.9 l, two-stage turbo, air-to-water intercooled']],
+ ['Engine','Engine displacement',['12.9 l (bore x stroke 135 x 150 mm)','12.9 l (bore x stroke 135 x 150 mm)','12.9 l (bore x stroke 135 x 150 mm)','12.9 l (bore x stroke 135 x 150 mm)','12.9 l (bore x stroke 135 x 150 mm)','12.9 l (bore x stroke 135 x 150 mm)','12.9 l (bore x stroke 135 x 150 mm)','12.9 l (bore x stroke 135 x 150 mm)','12.9 l (bore x stroke 135 x 150 mm)','12.9 l (bore x stroke 135 x 150 mm)','12.9 l (bore x stroke 135 x 150 mm)','15.9 l (bore x stroke 141 x 170 mm)','15.9 l (bore x stroke 141 x 170 mm)']],
+ ['Engine','Fuel tank capacity',['1,173 l','1,173 l','1,173 l','1,722 l','1,722 l','1,722 l','1,779 l','1,779 l','1,779 l','1,779 l','1,779 l','1,968 l','1,968 l']],
+ ['Electrical','Alternator and batteries','12 V 240 A standard (330 A optional), 3 x 950 cranking amps; 24 V start'],
+ ['Transmission','Transmission',['PowerDrive full powershift 16F / 2R, 40 km/h or 42.6 km/h with HDS','PowerDrive full powershift 16F / 2R, 40 km/h or 42.6 km/h with HDS','PowerDrive full powershift 16F / 2R, 40 km/h or 42.6 km/h with HDS','PowerDrive full powershift 16F / 2R, 40 km/h or 42.6 km/h with HDS','PowerDrive full powershift 16F / 2R, 40 km/h or 42.6 km/h with HDS','PowerDrive full powershift 16F / 2R, 40 km/h or 42.6 km/h with HDS','PowerDrive full powershift 16F / 2R, 40 km/h or 42.6 km/h with HDS','PowerDrive full powershift 16F / 2R, 40 km/h or 42.6 km/h with HDS','PowerDrive full powershift 16F / 2R, 40 km/h or 42.6 km/h with HDS','PowerDrive full powershift 16F / 2R, 40 km/h or 42.6 km/h with HDS','PowerDrive full powershift 16F / 2R, 40 km/h or 42.6 km/h with HDS','PowerDrive full powershift 16F / 2R, 42.6 km/h with HDS','PowerDrive full powershift 16F / 2R, 42.6 km/h with HDS']],
+ ['Transmission','Differential lock','Multi disc wet plate with management system; automatic differential lock standard'],
+ ['Transmission','Service brakes','Multiple wet disc, integral with front and rear axles'],
+ ['Axles','Axle',['127 mm bar, 4-gear planetary','127 mm bar, 4-gear planetary','127 mm bar, 4-gear planetary','127 mm bar, 4-gear planetary','140 mm bar, 3-gear planetary','140 mm bar, 3-gear planetary','Flanged','Flanged','Flanged','Flanged','Flanged','Flanged','Flanged']],
+ ['Axles','Duals on PowerDrive',['Optional','Optional','Optional','Optional','Optional','Optional','','','','','','','']],
+ ['Tyres','Standard tyres (front and rear)',['710/70R42','710/70R42','710/70R42','710/70R42','710/70R42','710/70R42','','','','','','','']],
+ ['Tyres','Row crop tyres for planting (optional)',['480/95R50','480/95R50','480/95R50','480/95R50','480/95R50','480/95R50','','','','','','','']],
+ ['Tracks','Track width options',['','','','','','','457, 533, 610 or 762 mm','457, 533, 610 or 762 mm','762 or 914 mm','762 or 914 mm','762 or 914 mm','762 or 914 mm','762 or 914 mm']],
+ ['Steering','Steering','Electro-hydraulic with management system'],
+ ['Steering','Steering angle',['42°','42°','42°','38°','38°','38°','38°','38°','38°','38°','38°','36°','36°']],
+ ['Steering','Minimum turning radius',['5.2 m','5.2 m','5.2 m','6.0 m','6.0 m','6.0 m','6.0 m','6.0 m','6.2 m','6.2 m','6.2 m','6.4 m','6.4 m']],
+ ['PTO','PTO','Electro-hydraulic multi plate wet clutch, 1,000 rpm optional, 1 3/4" shaft'],
+ ['Hydraulics','Hydraulic system','Pressure flow compensating (PFC)'],
+ ['Hydraulics','Hydraulic pump flow (standard / high flow / twin flow)',['159 / 216 / 428 l/min','159 / 216 / 428 l/min','159 / 216 / 428 l/min','159 / 216 / 428 l/min','159 / 216 / 428 l/min','159 / 216 / 428 l/min','159 / 216 / 428 l/min','159 / 216 / 428 l/min','159 / 216 / 428 l/min','159 / 216 / 428 l/min','159 / 216 / 428 l/min','216 / 428 l/min (high / twin)','216 / 428 l/min (high / twin)']],
+ ['Hydraulics','Flow at a single remote valve','133 / 170 l/min'],
+ ['Hydraulics','Hydraulic pressure','210 bar'],
+ ['Hydraulics','Rear lift capacity (at hook ends, standard / optional)','9,934 / 10,092 kg'],
+ ['Hydraulics','Hitch category','Cat 4N, convertible to Cat 3'],
+ ['Hydraulics','Remote valves','4, 6 or 8 electronic'],
+ ['Drawbar','Drawbar pin diameter (high capacity)','70 / 50 mm'],
+ ['Drawbar','Drawbar vertical capacity',['4,989 or 6,804 kg','4,989 or 6,804 kg','4,989 or 6,804 kg','4,989 or 6,804 kg','4,989 or 6,804 kg','4,989 or 6,804 kg','4,989 or 6,804 kg','4,989 or 6,804 kg','4,989 or 6,804 kg','4,989 or 6,804 kg','4,989 or 6,804 kg','6,804 kg','6,804 kg']],
+ ['Weight','Base shipping weight',['18,507 kg','18,562 kg','18,562 kg','21,512 kg','22,825 kg','22,825 kg','23,358 kg','23,358 kg','25,038 kg','25,764 kg','25,764 kg','27,760 kg','27,760 kg']],
+ ['Weight','Maximum ballasted weight',['25,401 kg','25,401 kg','25,401 kg','27,215 kg','30,390 kg','30,390 kg','30,390 kg','30,390 kg','30,390 kg','30,390 kg','30,390 kg','32,658 kg','32,658 kg']],
+ ['Dimensions','Wheelbase',['3,759 mm','3,759 mm','3,759 mm','3,911 mm','3,911 mm','3,911 mm','3,912 mm','3,912 mm','3,912 mm','3,912 mm','3,912 mm','3,912 mm','3,912 mm']],
+ ['Dimensions','Overall length',['7,493 mm','7,493 mm','7,493 mm','7,750 mm','7,750 mm','7,750 mm','7,770 mm','7,770 mm','7,770 mm','7,770 mm','7,770 mm','8,290 mm','8,290 mm']],
+ ['Dimensions','Overall height',['4,048 mm','4,048 mm','4,048 mm','4,141 mm','4,141 mm','4,141 mm','3,835 mm','3,835 mm','3,835 mm','3,835 mm','3,835 mm','3,918 mm','3,918 mm']],
+ ['Dimensions','Overall width',['2,550 mm (4,616 mm with duals)','2,550 mm (4,616 mm with duals)','2,550 mm (4,616 mm with duals)','2,990 mm (4,610 mm with duals)','2,990 mm (4,610 mm with duals)','2,990 mm (4,610 mm with duals)','2,997 / 3,150 mm (762 / 914 mm tracks)','2,997 / 3,150 mm (762 / 914 mm tracks)','2,997 / 3,150 mm (762 / 914 mm tracks)','2,997 / 3,150 mm (762 / 914 mm tracks)','2,997 / 3,150 mm (762 / 914 mm tracks)','2,997 / 3,150 mm (762 / 914 mm tracks)','2,997 / 3,150 mm (762 / 914 mm tracks)']]
+]},
+{id:'steiger',r:'steiger',name:'Steiger & Quadtrac tractors (previous models)',kw:'tractor trekker articulated 4wd previous old older trade',src:'Quadtrac & Steiger AFS Connect brochure (09/2022)',
+ models:[['Steiger 400','steiger400 400 wheeled wheel'],['Steiger 450','steiger450 450 wheeled wheel'],['Steiger 500','steiger500 500 wheeled wheel'],['Steiger 550','steiger550 550 wheeled wheel'],['Steiger 600','steiger600 600 wheeled wheel'],['Quadtrac 450','quadtrac450 450 qt quad track tracks'],['Quadtrac 500','quadtrac500 500 qt quad track tracks'],['Quadtrac 550','quadtrac550 550 qt quad track tracks'],['Quadtrac 600','quadtrac600 600 qt quad track tracks']],
+ rows:[
+ ['Engine','Rated power',['400 hp (298 kW)','450 hp (336 kW)','500 hp (373 kW)','550 hp (410 kW)','600 hp (447 kW)','450 hp (336 kW)','500 hp (373 kW)','550 hp (410 kW)','600 hp (447 kW)']],
+ ['Engine','Maximum power (@ 1,900 rpm)',['442 hp','497 hp (371 kW)','550 hp (410 kW)','608 hp (453 kW)','662 hp (493 kW)','497 hp (371 kW)','550 hp (410 kW)','608 hp (453 kW)','662 hp (493 kW)']],
+ ['Engine','Rated engine speed','2,100 rpm'],
+ ['Engine','Maximum torque (@ 1,400 rpm)',['1,924 Nm','2,161 Nm','2,400 Nm','2,626 Nm','2,879 Nm','2,161 Nm','2,400 Nm','2,626 Nm','2,879 Nm']],
+ ['Engine','Torque rise','40%'],
+ ['Engine','Engine','Case IH FPT, 6 cylinders, turbocharged and intercooled, Tier 2'],
+ ['Engine','Engine displacement','12.9 l (bore x stroke 135 x 150 mm)'],
+ ['Engine','Turbo',['Wastegate turbo, air-to-air aftercooled','Wastegate turbo, air-to-air aftercooled','Wastegate turbo, air-to-air aftercooled','Two-stage turbo, air-to-air aftercooled','Two-stage turbo, air-to-air aftercooled','Wastegate turbo, air-to-air aftercooled','Wastegate turbo, air-to-air aftercooled','Two-stage turbo, air-to-air aftercooled','Two-stage turbo, air-to-air aftercooled']],
+ ['Engine','Fuel tank capacity',['1,173 l','1,173 l','1,173 l or 1,779 l','1,779 l','1,779 l','1,173 l','1,173 l or 1,779 l','1,779 l','1,779 l']],
+ ['Electrical','Alternator and batteries','12 V, 2 x 240 A; 1,000 cold cranking amps; 24 V start'],
+ ['Transmission','Transmission','PowerDrive full powershift, 16 forward / 2 reverse, 16th gear 40 km/h'],
+ ['Transmission','Differential lock','Multi disc wet plate with management system; automatic differential lock standard'],
+ ['Transmission','Service brakes','Multiple wet disc, integral with front and rear axles'],
+ ['Axles','Rear bar axle diameter',['127 mm','127 mm','127 mm','140 mm','140 mm','','','','']],
+ ['Axles','Bar axle width',['3,048–4,477 mm','3,048–4,477 mm','3,048–4,610 mm','3,048–4,610 mm','3,048–4,610 mm','','','','']],
+ ['Axles','Duals on PowerDrive',['Optional','Optional','Optional','Optional','Optional','','','','']],
+ ['Steering','Steering','Electro-hydraulic with management system'],
+ ['Steering','Steering angle',['55°','55°','55°','55°','55°','50°','50°','50°','50°']],
+ ['Steering','Minimum turning radius',['5.2 m','5.2 m','5.5 m','6.0 m','6.0 m','6.2 m','6.0 m','6.0 m','6.0 m']],
+ ['PTO','PTO','Electro-hydraulic multi plate wet clutch, 1,000 rpm optional, 1 3/4" shaft'],
+ ['Hydraulics','Hydraulic system','Pressure flow compensating (PFC)'],
+ ['Hydraulics','Hydraulic pump flow (standard / high flow / twin flow)','159 / 216 / 427 l/min'],
+ ['Hydraulics','Hydraulic pressure','215 bar'],
+ ['Hydraulics','Three-point linkage lift capacity (optional)',['8,900 kg','8,900 kg','8,900 kg','8,900 kg','8,900 kg','8,949 kg','8,949 kg','8,949 kg','8,949 kg']],
+ ['Hydraulics','Hitch category','Category IV-N'],
+ ['Hydraulics','Drawbar vertical capacity','4,983 kg (6,804 kg optional)'],
+ ['Hydraulics','Remote valves','4 standard, up to 8, electronic'],
+ ['Weight','Base shipping weight',['17,858 kg','17,858 kg','19,885 kg','22,602 kg','22,602 kg','23,416 kg','23,416 kg','24,042 kg','24,042 kg']],
+ ['Weight','Maximum ballasted weight',['22,453 kg','22,453 kg','25,401 kg','29,937 kg','29,937 kg','29,030 kg','29,030 kg','29,030 kg','29,030 kg']],
+ ['Weight','Maximum permissible weight, front and rear axle each',['14,594 kg','14,594 kg','16,510 kg','19,459 kg','19,459 kg','18,869 kg','18,869 kg','18,869 kg','18,869 kg']],
+ ['Dimensions','Wheelbase',['3,759 mm','3,759 mm','3,911 mm','3,911 mm','3,911 mm','4,063 mm','3,912 mm','3,912 mm','3,912 mm']],
+ ['Dimensions','Overall length',['7,493 mm','7,493 mm','7,615 mm','7,615 mm','7,615 mm','7,493 mm','7,615 mm','7,615 mm','7,615 mm']],
+ ['Dimensions','Overall height',['4,048 mm','4,048 mm','4,141 mm','4,141 mm','4,141 mm','4,048 mm','4,141 mm','4,141 mm','4,141 mm']],
+ ['Dimensions','Overall width (across rear fenders, excluding duals)',['3,843 mm','3,843 mm','4,089 mm','4,089 mm','4,089 mm','2,997 / 3,150 mm (762 / 914 mm tracks)','2,997 / 3,150 mm (762 / 914 mm tracks)','2,997 / 3,150 mm (762 / 914 mm tracks)','2,997 / 3,150 mm (762 / 914 mm tracks)']],
+ ['Tyres and tracks','Standard tyres (front and rear)',['710/70R42','710/70R42','710/70R42','710/70R42','710/70R42','','','','']],
+ ['Tyres and tracks','Track belt width',['','','','','','762 or 914 mm','762 or 914 mm','762 or 914 mm','762 or 914 mm']]
+]},
+{id:'pat250',r:'patriot',name:'Patriot 250 / 350 sprayers',kw:'sprayer spuit self propelled selfpropelled',src:'Patriot 250 / 350 series flyer (MEA)',
+ models:[['Patriot 250','p250 sp250 patriot250 250'],['Patriot 350','p350 sp350 patriot350 350']],
+ rows:[
+ ['Engine','Engine',['Case IH FPT 6.7 l, inline 6 cylinder, Tier 3, common rail, turbo intercooler','Case IH FPT 6.7 l, 6 cylinder, Tier 3, common rail, turbo intercooler']],
+ ['Engine','Rated power',['177 hp','250 hp']],
+ ['Engine','Power boost',['23.6%','8.6%']],
+ ['Engine','Fuel tank capacity','319 l'],
+ ['Drive','Drive',['Hydrostatic, full-time 4WD, four speed ranges shiftable on the go','Hydrostatic, full-time 4WD, four speed ranges shiftable on the go, traction assist']],
+ ['Drive','Hydraulics','Heavy duty high capacity pumps; independent flow to each wheel'],
+ ['Drive','Steering',['Hydraulic power steering with master/slave rephasing cylinders','Hydraulic with rephasing cylinders']],
+ ['Drive','Suspension','4-wheel independent trailing link; spring and shock front, active suspension rear'],
+ ['Drive','Turning radius','6.9 m'],
+ ['Chassis','Wheel track adjustment',['229–305 cm, hydraulic from the cab, manual stops at 51 cm increments','305–399 cm, hydraulic from the cab']],
+ ['Chassis','Ground clearance',['1.53 m with 320/90R42 tyres','1.73 m with 380/90R46 tyres']],
+ ['Chassis','Tyres',['320/90R42 standard, 16.6R38 optional','380/90R46']],
+ ['Chassis','Wheelbase','3.81 m'],
+ ['Chassis','Dry weight',['9,526 kg','11,950 kg with 36 m boom']],
+ ['Chassis','Overall length',['7.7 m','8.46 m']],
+ ['Chassis','Overall height',['3.7 m','3.66 m']],
+ ['Chassis','Overall width',['3.2 m with track at 2.5 m; 3.5 m with wheels extended','3.99 m']],
+ ['Spraying','Product tank',['2,500 l, poly','3,500 l, polyethylene']],
+ ['Spraying','Boom widths',['27, 30 and 32 m','27, 30 and 36 m']],
+ ['Spraying','Boom height range',['60–220 cm','50–250 cm']],
+ ['Spraying','Boom sections',['9','']],
+ ['Spraying','Nozzle spacing',['50.8 and 35 cm','50.8 cm']],
+ ['Spraying','Rate control',['AIM Command Flex with PWM (pulse width modulation), low-rate control','PWM (pulse width modulation)']],
+ ['Spraying','Product pump',['Centrifugal, hydraulic motor driven, steel, 437 l/min','Centrifugal, hydraulic drive, stainless steel, 549 l/min']],
+ ['Spraying','Rinse tank',['280 l','350 l']],
+ ['Spraying','Chemical eductor','36.5 l'],
+ ['Spraying','Agitation','Adjustable from the cab'],
+ ['Spraying','Chemical direct injection','Optional, 2 tanks of 100 l each'],
+ ['Spraying','AutoBoom (automatic boom levelling)',['Optional','Standard']],
+ ['Spraying','Boom auto centering','Standard'],
+ ['Other','Hydraulic oil tank',['142 l','105 l']],
+ ['Other','Display and telematics',['AFS Pro 700; telematics optional','AFS Pro 700; telematics and AIM Command Flex optional']],
+ ['Other','Steel belly pan',['Optional','Standard']],
+ ['Other','Fenders',['Standard','Optional']],
+ ['Other','Emergency brake',['Optional','']],
+ ['Other','Designed for','Tough conditions in Africa and the Middle East; cab forward, rear engine layout for even weight distribution and less compaction']
+]},
+{id:'pat50',r:'patriot',name:'Patriot 50 series sprayers',kw:'sprayer spuit self propelled selfpropelled',src:'Patriot 50 series flyer (11/22 MEA)',
+ models:[['Patriot 3250','p3250 sp3250 patriot3250 3250'],['Patriot 4350','p4350 sp4350 patriot4350 4350'],['Patriot 4450','p4450 sp4450 patriot4450 4450']],
+ rows:[
+ ['Engine','Rated power',['285 hp','335 hp','390 hp']],
+ ['Engine','Peak power',['309 hp','374 hp','415 hp']],
+ ['Engine','Peak torque',['1,159 Nm','1,550 Nm','1,706 Nm']],
+ ['Engine','Engine',['Case IH FPT Tier 3, 6 cylinder, 6.7 l','Case IH FPT Tier 2, 6 cylinder, 8.7 l','Case IH FPT Tier 2, 6 cylinder, 8.7 l']],
+ ['Engine','Fuel tank capacity','568 l'],
+ ['Engine','Alternator','240 A standard; 330 A with direct injection kits'],
+ ['Drivetrain','Drive','Hydrostatic, full-time 4WD with traction control, infinitely variable with two programmable speed presets'],
+ ['Drivetrain','Top speed',['51.5 km/h','59.5 km/h','59.5 km/h']],
+ ['Chassis','Crop clearance','1,346 mm'],
+ ['Chassis','Wheelbase',['3.8 m','4.1 m','4.1 m']],
+ ['Chassis','Turning radius',['6.8 m','7.6 m','7.3 m']],
+ ['Chassis','Suspension','4-wheel independent, 4-bar linkage, air ride with tuned shock absorbers; 203 mm total travel'],
+ ['Chassis','Wheel track adjustment','2,997–4,064 mm from the cab; manual stops at 2.5 cm (standard) or automatic via AFS Pro 1200 in 1 cm steps (optional)'],
+ ['Tyres','Row crop tyres',['VF380/90R46, LSW480/70R46','VF380/90R46, LSW480/70R46','VF380/105R50, VF480/80R50']],
+ ['Tyres','Flotation tyres',['LSW680/50R46','LSW680/50R46','LSW710/60R46']],
+ ['Spraying','Solution tank',['3,785 l','4,542 l','6,057 l']],
+ ['Spraying','Solution tank details','Stainless steel; 76.2 mm fill; service centre and front fill'],
+ ['Spraying','Rinse tank',['379 l','530 l','605 l']],
+ ['Spraying','Product pump','Hypro centrifugal, 50.8 x 38.1 mm, stainless steel housing'],
+ ['Spraying','Boom lengths','18.3/30.5 m, 18.3/27.4/36.6 m, 21.0/41.1 m, model dependent'],
+ ['Spraying','Boom','Stainless steel spray bars; 508 mm nozzle spacing; height 610–2,100 mm; fence row nozzles fixed at 45°'],
+ ['Spraying','Spray technology','AIM Command FLEX II: individual nozzle on/off control, severe duty poppets, higher flow rates'],
+ ['Cab','Display','AFS Pro 1200'],
+ ['Cab','Cab','3.7 m³ interior, 7.5 m² glass, luxury trim, automatic climate control; pressure alert below 20 Pa'],
+ ['Cab','Seat and controls','Active seat with 30° swivel to the right; MultiControl armrest and MultiFunction handle like Magnum and Steiger'],
+ ['Dimensions','Dry weight',['13,082 kg','14,700 kg','15,315 kg']],
+ ['Dimensions','Transport height x width x length',['3.7 x 3.7 x 9.0 m','3.8 x 3.8 x 9.3 m','3.8 x 3.8 x 9.3 m']]
+]},
+{id:'af150',r:'axial',name:'Axial-Flow 150 series combines',kw:'combine combines harvester stroper',src:'Axial-Flow 150 series flyer (11/22 MEA)',
+ models:[['Axial-Flow 5150','af5150 5150 af'],['Axial-Flow 6150','af6150 6150 af'],['Axial-Flow 7150','af7150 7150 af']],
+ rows:[
+ ['Engine','Maximum power (@ 2,000 rpm)',['315 hp (231 kW)','409 hp (305 kW)','436 hp (320 kW)']],
+ ['Engine','Engine',['FPT 6 cylinder, turbo, aftercooler, 6,700 cc, Tier III','FPT 6 cylinder, turbo, aftercooler, 8,700 cc, Tier III','FPT 6 cylinder, turbo, aftercooler, 8,700 cc, Tier III']],
+ ['Engine','Fuel tank capacity',['550 l','950 l','950 l']],
+ ['Headers','Grain header widths',['4.9 / 5.5 / 6.1 / 6.7 m','4.9 / 5.5 / 6.1 / 6.7 / 7.6 / 8.5 m','4.9 / 5.5 / 6.1 / 6.7 / 7.6 / 8.5 / 9.1 m']],
+ ['Headers','Corn headers (4400 range)',['6-row chopping','6- and 8-row chopping, 12-row non-chopping','6- and 8-row chopping, 12-row non-chopping']],
+ ['Headers','Pickup headers (3016 range)','3.7 / 4.6 m'],
+ ['Threshing','Rotor drive','Variable belt with 3-speed transmission'],
+ ['Threshing','Rotor speed','250–1,150 rpm (3 ranges)'],
+ ['Threshing','Rotor size','762 mm diameter, 2,794 mm long'],
+ ['Threshing','Separation area','2.78 m²'],
+ ['Threshing','Threshing / separating wrap angle','156° / 133°; 3 / 3 modules'],
+ ['Cleaning','Sieve area under wind control','5.4 m²'],
+ ['Grain tank','Grain tank capacity',['9,200 l (10,570 l with covers)','10,570 l','10,570 l']],
+ ['Grain tank','Unloading rate','113 l/s'],
+ ['Grain tank','Unloading auger length','6.6 / 7.5 / 7.9 m'],
+ ['Grain tank','Grain tank covers','Electric control from cab, standard'],
+ ['Residue','Straw chopper knives (chopper / counterbar)','Fixed 32 / 25, flail 76 / 47'],
+ ['Residue','Spreader','Dual vertical mechanical spreaders'],
+ ['Traction','Transmission','4-speed electrically controlled hydrostatic'],
+ ['Traction','Final drive','Bull gear'],
+ ['Traction','Powered rear axle','Optional'],
+ ['Traction','Traction tyres','30.5L-32 / TW800/65R32 / TW900/60R32'],
+ ['Traction','Steering tyres','SW600/65R28 / SW18.4-26'],
+ ['Precision','Yield and moisture mapping, guidance ready','Optional; AccuGuide auto-steering to 1.5 cm'],
+ ['Dimensions','Length / width / height','8.7 m / 3.3–3.94 m / 4.0 m'],
+ ['Grain quality','Cracked grain','Average 0.47% for Case IH against 1.67% for a threshing-drum competitor (Agricultural Chamber of Upper Austria)']
+]},
+{id:'af260',r:'axial',name:'Axial-Flow 260 series combines',kw:'combine combines harvester stroper',src:'Axial-Flow 260 series brochure (2024)',
+ models:[['Axial-Flow 7260','af7260 7260 af'],['Axial-Flow 8260','af8260 8260 af'],['Axial-Flow 9260','af9260 9260 af']],
+ rows:[
+ ['Engine','Maximum power (@ 2,000 rpm)',['498 hp (366 kW)','571 hp (420 kW)','634 hp (466 kW)']],
+ ['Engine','Engine',['FPT Cursor 11, 6 cylinder, 11,100 cc, Stage V','FPT Cursor 13, 6 cylinder, 12,900 cc, Stage V','FPT Cursor 16, 6 cylinder, 15,900 cc, Stage V']],
+ ['Engine','Fuel / urea tank',['1,125 l diesel / 166 l urea','1,125 l diesel / 166 l urea','1,200 l diesel (1,020 l with Xtra-Chopping) / 166 l urea']],
+ ['Engine','After-treatment','HI-eSCR2, maintenance-free; EGR-free engine'],
+ ['Engine','Power boost','Electronically controlled power boost for unloading on the go'],
+ ['Headers','Grain header widths',['6.1 / 6.7 / 7.6 / 9.2 m','7.6 / 9.2 / 10.7 / 12.5 m','7.6 / 9.2 / 10.7 / 12.5 m']],
+ ['Headers','Corn headers (4400 range)','6, 8 and 12-row wide, 16/18-row narrow'],
+ ['Headers','Pickup headers (3016 range)','3.7 / 4.6 m'],
+ ['Headers','Header options','MacDon draper 7.6–15.2 m; G500V grain header 6.1–12.5 m; 3020 flex 6.1–10.7 m'],
+ ['Headers','Feeder','12° fore-aft tilt from the cab; 1.35 m header lift ground clearance; HD elevators for headers up to 15 m and 18 rows'],
+ ['Threshing','Rotor drive','Power Plus gearbox and shaft drive, variable speed, reversible from the seat'],
+ ['Threshing','Rotor speed','220–1,180 rpm (3 ranges)'],
+ ['Threshing','Rotor size','762 mm diameter, 2,638 mm long'],
+ ['Threshing','Separation area','2.98 m²; 180° wrap; 2/2 concave rows'],
+ ['Cleaning','Sieve area under wind control','6.5 m², cascade sieve'],
+ ['Cleaning','Hillside levelling','12.1% (Cross-Flow cleaning)'],
+ ['Cleaning','Cleaning fan','Hydraulic load sensing, 300–1,150 rpm'],
+ ['Cleaning','Tailings','Tri-Sweep triple impeller rethresher to grain pan'],
+ ['Grain tank','Grain tank capacity',['11,100 l (14,400 l optional)','14,400 l','14,400 l']],
+ ['Grain tank','Unloading rate',['141 l/s','159 l/s','159 l/s']],
+ ['Grain tank','Unloading auger length','6.7 or 7.6 m standard; 7.2 or 8.8 m high capacity (rigid or folding)'],
+ ['Residue','Chopper','Integral fixed knife chopper (24/12, 40/40 or 120/40 knives); Xtra-Chopping system optional (adds hood mount chopper, 96 knives)'],
+ ['Residue','Chopper speed','800 rpm for swath delivery, 3,000 rpm chopping'],
+ ['Residue','Spreader','Twin disc, hydraulically driven, speed adjustable from the cab'],
+ ['Traction','Transmission','2-speed hydrostatic with on-the-go high/low shift'],
+ ['Traction','Final drive',['Bull gear (planetary optional)','Planetary','Planetary']],
+ ['Traction','Tracks','610, 724 or 860 mm track widths; rubber dampening or hydraulic suspension'],
+ ['Traction','Front tyres','VF710/70R42 / IF800/70R38 / IF900/60R32 / VF900/60R38'],
+ ['Traction','Rear tyres','500/85R24 / VF600/70R28 / VF620/70R26 / 750/65R26'],
+ ['Automation','Harvest Command','Optional; adjusts ground speed, rotor speed, fan speed and both sieves from sensor inputs; strategies: performance, grain quality, max throughput, fixed throughput'],
+ ['Automation','Grain camera','Patented; visible, infrared and UV light; detects foreign matter and cracked grain; 7.5 seconds to analyse and adjust'],
+ ['Automation','Crops','Designed to harvest over 134 types of grain'],
+ ['Cab','Display','Dual Case IH Pro 1200 (12 inch, multi-touch, Bluetooth)'],
+ ['Cab','Cab features','Up to 4 cameras; temperature-controlled luxury seat with massage (option); removable cooler box'],
+ ['Precision','Guidance','AccuGuide, AccuTurn Pro, AccuSync (up to 6 combines), RowGuide for corn'],
+ ['Packages','Equipment packages','Selection (7260 only): 11,100 l tank, halogen, wheels; Advanced: 14,400 l, LED, wheels or tracks; Professional: plus RTK 5 years, yield logging, Harvest Command standard'],
+ ['Service','Warranty','Safeguard warranty extends cover by 2 years, protected for 3 years'],
+ ['Dimensions','Length / width / transport height','8,050 mm / 3,490 mm / 3,980 mm'],
+ ['Dimensions','Weight',['19,000 kg','20,000 kg','21,000 kg (on tracks)']],
+ ['Grain quality','Cracked grain','Average 0.47% for Case IH against 1.67% for a threshing-drum competitor (Agricultural Chamber of Upper Austria)']
+]}
+];
+/* drop empty helper rows */
+D.forEach(t=>{t.rows=t.rows.filter(r=>r.length===3&&(typeof r[2]==='string'?r[2]!=='':r[2].some(x=>x)))});
+
+/* ================= SEARCH ================= */
+const STOP=new Set('the of a an what whats is are how much many does do on for with and vs versus to in it its this that me tell give van die wat hoe is en op vir met se n by watter'.split(' '));
+const SYN={
+ horsepower:['power'],hp:['power','hp'],kw:['power','kw'],pk:['power'],krag:['power'],perdekrag:['power'],engine:['engine','power'],
+ diesel:['fuel','diesel'],brandstof:['fuel'],tenk:['tank'],
+ nm:['torque'],draaimoment:['torque'],wringkrag:['torque'],
+ gearbox:['transmission','gearbox'],gears:['transmission','speeds'],ratkas:['transmission'],powershift:['powershift','transmission'],cvt:['cvxdrive','cvt'],
+ tire:['tyre'],tires:['tyre'],tyres:['tyre'],tyre:['tyre'],band:['tyre'],bande:['tyre'],wheels:['tyre','wheel'],
+ mass:['weight'],gewig:['weight'],swaar:['weight'],weeg:['weight'],heavy:['weight'],weigh:['weight'],ballast:['ballasted','weight'],
+ wielbasis:['wheelbase'],base:['wheelbase','base'],
+ hef:['lift'],hefvermoe:['lift'],lifting:['lift'],linkage:['linkage','lift','hitch'],'3pt':['linkage','hitch','lift'],hitch:['hitch','lift'],
+ spools:['remote'],spool:['remote'],scv:['remote'],remotes:['remote'],valves:['valve','remote'],kleppe:['valve','remote'],
+ hydraulics:['hydraulic'],hidroulies:['hydraulic'],lpm:['flow'],pump:['pump','flow'],pomp:['pump','flow'],
+ circle:['turning'],draai:['turning'],draaisirkel:['turning'],
+ kph:['speed'],kmh:['speed'],spoed:['speed'],fast:['speed'],
+ bin:['grain'],hopper:['grain','tank'],graantenk:['grain'],
+ adblue:['urea','emission'],def:['urea'],emissions:['emission','tier','stage'],emission:['emission','tier','stage'],
+ table:['header'],platform:['header'],cutterbar:['header'],tafel:['header'],snybord:['header'],
+ offload:['unloading'],uitlaai:['unloading'],
+ breedte:['width'],wide:['width'],lengte:['length'],long:['length'],hoogte:['height'],tall:['height'],
+ cylinders:['cylinder'],cyl:['cylinder'],silinders:['cylinder'],
+ litre:['displacement','engine'],liter:['displacement','engine'],cc:['displacement','cc'],size:['displacement','size'],
+ tracks:['track'],spore:['track'],
+ spray:['spray','boom','nozzle'],spuit:['spray','boom','sprayer'],nozzles:['nozzle'],nossels:['nozzle'],
+ grondvryhoogte:['clearance'],cabin:['cab'],kajuit:['cab'],battery:['battery','alternator'],
+ trekker:['tractor'],stroper:['combine'],sprayers:['sprayer'],combines:['combine'],
+ warranty:['warranty'],waarborg:['warranty'],gps:['guidance','accuguide'],autosteer:['guidance','accuguide'],steering:['steering','steer']
+};
+const norm=s=>String(s).toLowerCase().replace(/(\d),(?=\d{3}\b)/g,'$1').replace(/[’'"]/g,'').replace(/ë/g,'e').replace(/ê/g,'e').replace(/ô/g,'o');
+const words=s=>norm(s).match(/[a-z0-9]+(?:\.[0-9]+)?/g)||[];
+const isNum=w=>/^\d/.test(w);
+function tokens(q){
+  let t=words(q).filter(w=>w.length>1||isNum(w));
+  const kept=t.filter(w=>!STOP.has(w));
+  return kept.length?kept:t;
+}
+function hits(alt,ws){
+  const a=alt.p;
+  for(const w of ws){
+    if(isNum(a)?w===a:(a.length<3?w===a:w.startsWith(a)))return true;
+    for(const x of alt.x)if(w===x||w===x+'s')return true;
+  }
+  return false;
+}
+/* prepare word lists */
+D.forEach(t=>{
+  t.rangeWords=words(t.name+' '+t.kw+' '+RANGES.find(r=>r.id===t.r).n);
+  t.mWords=t.models.map(m=>words(m[0]+' '+m[1]));
+  t.rows.forEach(r=>{
+    r.lw=words(r[1]);r.sw=words(r[0]);
+    r.vw=t.models.map((m,i)=>words(typeof r[2]==='string'?r[2]:r[2][i]||''));
+  });
+});
+const valOf=(r,i)=>typeof r[2]==='string'?r[2]:(r[2][i]||'');
+
+function known(t){
+  const alt={p:t,x:SYN[t]||[]};
+  return D.some(d=>hits(alt,d.rangeWords)||d.mWords.some(w=>hits(alt,w))||d.rows.some(r=>hits(alt,r.lw)||hits(alt,r.sw)||r.vw.some(w=>hits(alt,w))));
+}
+function search(q,range){
+  const all=tokens(q);if(!all.length)return null;
+  const res=searchT(all,range);
+  if((res.cards&&res.cards.length)||res.sheets||res.picker)return res;
+  const tk=all.filter(known),skipped=all.filter(t=>!known(t));
+  if(!tk.length||!skipped.length)return res;
+  const r2=searchT(tk,range);r2.skipped=skipped;return r2;
+}
+function searchT(tk,range){
+  const alts=tk.map(t=>({p:t,x:SYN[t]||[]}));
+  const tables=D.filter(t=>range==='all'||t.r===range);
+  const sheets=[],cards=[];
+  for(const t of tables){
+    // which tokens each model covers by name / range
+    const mh=t.models.map((m,i)=>alts.map(a=>hits(a,t.mWords[i])||hits(a,t.rangeWords)));
+    const named=t.models.map((m,i)=>alts.some((a,k)=>hits(a,t.mWords[i])&&!hits(a,t.rangeWords)));
+    // model-only query → sheet
+    t.models.forEach((m,i)=>{if(mh[i].every(Boolean)&&(named[i]||tk.length===alts.filter((a,k)=>hits(a,t.rangeWords)).length))sheets.push({t,i,named:named[i]})});
+    t.rows.forEach((r,ri)=>{
+      const lh=alts.map(a=>hits(a,r.lw)),sh=alts.map(a=>hits(a,r.sw));
+      const anyRow=lh.some(Boolean)||sh.some(Boolean);
+      const ms=[];let best=0;
+      t.models.forEach((m,i)=>{
+        if(!valOf(r,i))return;
+        let sc=0,ok=true,rowTok=false;
+        alts.forEach((a,k)=>{
+          if(lh[k]){sc+=4;rowTok=true}else if(sh[k]){sc+=2;rowTok=true}
+          else if(mh[i][k]){sc+=3}
+          else if(hits(a,r.vw[i])){sc+=1;rowTok=true}
+          else ok=false;
+        });
+        if(ok&&rowTok){ms.push(i);if(sc>best)best=sc}
+      });
+      if(ms.length){
+        const anyNamed=ms.some(i=>named[i]);
+        const focus=anyNamed?ms.filter(i=>named[i]):ms;
+        const lead=r.lw.length?2*lh.filter(Boolean).length/r.lw.length:0;
+        cards.push({t,r,ri,focus,score:best+lead+(anyNamed?2:0)+(anyRow?1:0)});
+      }
+    });
+  }
+  // when the query only names models, show their sheets instead of every row that mentions them
+  const namedSheets=sheets.filter(s=>s.named);
+  if(namedSheets.length&&!cards.some(c=>c.r.lw.length&&alts.some(a=>hits(a,c.r.lw)||hits(a,c.r.sw)))){
+    return {sheets:namedSheets,cards:[]};
+  }
+  if(sheets.length&&!cards.length)return {picker:sheets};
+  cards.sort((a,b)=>b.score-a.score||D.indexOf(a.t)-D.indexOf(b.t)||a.ri-b.ri);
+  return {cards:cards.slice(0,40),total:cards.length};
+}
+
+/* ================= UI ================= */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=id=>document.getElementById(id);
+const St={q:'',range:'all',sheet:null};
+const KEY='field-spec-finder.v1';
+function loadPrefs(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){return {}}}
+function savePrefs(p){try{localStorage.setItem(KEY,JSON.stringify(p))}catch(e){}}
+let prefs=loadPrefs();if(!Array.isArray(prefs.recent))prefs.recent=[];
+
+const QUICK=['Rated power','Lift capacity','Hydraulic flow','Fuel tank','Transmission','PTO speeds','Tyres','Wheelbase','Weight','Grain tank','Boom widths','Torque'];
+const short=n=>n.replace(/^(Magnum|Steiger|Quadtrac|Patriot|Axial-Flow|Puma) /,'');
+function isLong(v){return v.length>28}
+
+function cardHTML(c){
+  const {t,r,focus}=c,all=t.models.map((m,i)=>i).filter(i=>valOf(r,i));
+  const single=typeof r[2]==='string';
+  let body='';
+  if(single){
+    body=`<div class="ans"><div class="ans-row"><span class="m">${esc(focus.length===t.models.length||focus.length>2?'All models':focus.map(i=>t.models[i][0]).join(', '))}</span><span class="v${isLong(r[2])?' long':''}">${esc(r[2])}</span></div></div>`;
+  }else{
+    body=`<div class="ans">${focus.map(i=>`<div class="ans-row"><span class="m">${esc(t.models[i][0])}</span><span class="v${isLong(valOf(r,i))?' long':''}">${esc(valOf(r,i))}</span></div>`).join('')}</div>`;
+    const rest=all.filter(i=>!focus.includes(i));
+    if(rest.length)body+=`<div class="others">${rest.map(i=>`<span>${esc(short(t.models[i][0]))}: <b>${esc(valOf(r,i))}</b></span>`).join('')}</div>`;
+  }
+  return `<article class="card"><div class="card-h"><span class="eyebrow">${esc(t.name)} · ${esc(r[0])}</span></div><h2>${esc(r[1])}</h2>${body}<div class="src">Source: ${esc(t.src)}</div></article>`;
+}
+function sheetHTML(t,i,hl){
+  const secs=[];t.rows.forEach(r=>{const v=valOf(r,i);if(!v)return;let s=secs.find(x=>x.n===r[0]);if(!s)secs.push(s={n:r[0],rows:[]});s.rows.push([r[1],v])});
+  return `<article class="card"><div class="band"><h2>${esc(t.models[i][0])}</h2><span>${esc(t.name)}</span></div>
+   ${secs.map(s=>`<div class="sec">${esc(s.n)}</div>${s.rows.map(x=>`<div class="kv"><span class="k">${esc(x[0])}</span><span class="v">${esc(x[1])}</span></div>`).join('')}`).join('')}
+   <div class="src" style="padding-top:10px">Source: ${esc(t.src)}</div></article>`;
+}
+function browseHTML(){
+  const recent=prefs.recent.length?`<div class="label">Recent</div><div class="chips">${prefs.recent.map(r=>`<button class="chip" data-q="${esc(r)}">${esc(r)}</button>`).join('')}</div>`:'';
+  const tabs=D.filter(t=>St.range==='all'||t.r===St.range);
+  return `${recent}<div class="label">Quick look-ups</div><div class="chips">${QUICK.map(q=>`<button class="chip" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>
+   <div class="label">Browse models</div>
+   ${tabs.map(t=>`<section class="card"><div class="band"><h2>${esc(t.name)}</h2><span>${t.models.length} models</span></div><div class="mlist">${t.models.map(m=>`<button class="mbtn" data-q="${esc(m[0])}">${esc(m[0])}<small>${esc(valOf(t.rows[0],t.models.indexOf(m)))}</small></button>`).join('')}</div></section>`).join('')}
+   <div class="foot"><p>Everything on this page is stored inside it, so search keeps working with no signal once the page is open.</p><p>Figures come from Case IH worldwide brochures. Where local stock or a newer brochure differs, the local figure wins.</p></div>`;
+}
+function render(){
+  const out=$('out');$('clear').hidden=!St.q;
+  if(!St.q.trim()){out.innerHTML=browseHTML();return}
+  const res=search(St.q,St.range);
+  if(!res){out.innerHTML=browseHTML();return}
+  const skip=res.skipped?`<p class="status">No match for “${esc(res.skipped.join(' '))}”, so it was left out.</p>`:'';
+  if(res.sheets){out.innerHTML=skip+res.sheets.slice(0,3).map(s=>sheetHTML(s.t,s.i)).join('')+(res.sheets.length>3?`<p class="status">${res.sheets.length-3} more models match. Add the model number to narrow it down.</p>`:'');return}
+  if(res.picker){out.innerHTML=`<p class="status">Pick a model, or add a spec such as “lift” or “fuel”.</p><section class="card"><div class="mlist">${res.picker.map(s=>`<button class="mbtn" data-q="${esc(s.t.models[s.i][0])}">${esc(s.t.models[s.i][0])}<small>${esc(s.t.name)}</small></button>`).join('')}</div></section>`;return}
+  if(!res.cards.length){out.innerHTML=`<div class="empty"><strong>Nothing found for “${esc(St.q)}”.</strong><span class="status">Try a model and a spec, such as “magnum 340 lift”, “puma fuel” or “8260 grain tank”. You can also tap a model under Browse.</span><button class="back" data-q="">Back to browse</button></div>`;return}
+  out.innerHTML=skip+`<p class="status">${res.total} answer${res.total===1?'':'s'}${res.total>40?', showing the best 40':''}</p>`+res.cards.map(cardHTML).join('');
+}
+let tRecent=null;
+function setQ(q,push){
+  St.q=q;$('q').value=q;render();
+  clearTimeout(tRecent);
+  if(q.trim())tRecent=setTimeout(()=>{const v=q.trim();prefs.recent=[v,...prefs.recent.filter(x=>x.toLowerCase()!==v.toLowerCase())].slice(0,6);savePrefs(prefs)},1500);
+  if(push)try{window.scrollTo({top:0})}catch(e){}
+}
+function boot(){
+  $('ranges').innerHTML=[{id:'all',n:'All'},...RANGES].map(r=>`<button class="rchip" data-r="${r.id}" aria-pressed="${St.range===r.id}">${esc(r.n)}</button>`).join('');
+  $('ranges').addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(!b)return;St.range=b.dataset.r;document.querySelectorAll('.rchip').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.r===St.range)));render()});
+  $('q').addEventListener('input',e=>setQ(e.target.value));
+  $('q').addEventListener('keydown',e=>{if(e.key==='Enter'){e.target.blur()}});
+  $('clear').addEventListener('click',()=>{setQ('');$('q').focus()});
+  $('out').addEventListener('click',e=>{const b=e.target.closest('[data-q]');if(!b)return;setQ(b.dataset.q,true)});
+  render();
+}
+if(typeof globalThis!=='undefined')globalThis.__finder={D,search};
+if(typeof document!=='undefined')boot();
+</script>
+
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
+</script>
+</body></html>
